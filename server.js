@@ -345,6 +345,7 @@ Devuelve ÚNICAMENTE un JSON puro sin markdown:
     const jsonEnd = clean.lastIndexOf('}');
     const parsed = JSON.parse(clean.substring(jsonStart, jsonEnd + 1));
 
+    console.log('Respuesta IA:', JSON.stringify(parsed, null, 2));
     res.json({ ok: true, data: parsed });
   } catch(e) {
     res.json({ ok: false, error: e.message });
