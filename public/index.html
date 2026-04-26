@@ -792,6 +792,7 @@ function setTab(tab, el) {
   el.classList.add('active');
   document.getElementById('tab-mediciones').style.display = tab === 'mediciones' ? 'block' : 'none';
   document.getElementById('tab-presupuesto').style.display = tab === 'presupuesto' ? 'block' : 'none';
+  document.getElementById('tab-cte').style.display = tab === 'cte' ? 'block' : 'none';
   document.getElementById('btn-export-active').onclick = () => exportCSV(tab);
 }
 
