@@ -30,7 +30,7 @@ app.post('/analizar', upload.single('pdf'), async (req, res) => {
     console.log('Archivo recibido:', req.file?.originalname);
     const texto = await extraerTextoPDF(req.file.buffer);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-04-17' });
 
     const prompt = `Eres un arquitecto técnico experto en mediciones y presupuestos de obra en España.
 
