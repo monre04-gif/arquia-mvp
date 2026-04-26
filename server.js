@@ -3,11 +3,21 @@ const express = require('express');
 const multer = require('multer');
 const PDFParser = require('pdf2json');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle } = require('docx');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+app.use((req, res, next) => {
+  if (req.path === '/login' || req.path === '/verificar-login') return next();
+  const auth = req.cookies?.auth;
+  if (auth === process.env.APP_PASSWORD) return next();
+  if (req.path !== '/' && !req.path.endsWith('.html')) return res.status(401).json({ error: 'No autorizado' });
+  res.sendFile(__dirname + '/public/login.html');
+});
 
 app.use(express.static('public'));
 
@@ -349,6 +359,14 @@ Devuelve ÚNICAMENTE un JSON puro sin markdown:
     res.json({ ok: true, data: parsed });
   } catch(e) {
     res.json({ ok: false, error: e.message });
+  }
+});
+app.post('/verificar-login', express.json(), (req, res) => {
+  if (req.body.password === process.env.APP_PASSWORD) {
+    res.cookie('auth', process.env.APP_PASSWORD, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.json({ ok: true });
+  } else {
+    res.json({ ok: false });
   }
 });
 app.listen(3000, () => console.log('Servidor en http://localhost:3000'));
