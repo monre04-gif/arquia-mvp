@@ -34,38 +34,50 @@ app.post('/analizar', upload.single('pdf'), async (req, res) => {
 
     const prompt = `Eres un arquitecto técnico experto en mediciones y presupuestos de obra en España.
 
-Analiza esta memoria descriptiva y devuelve ÚNICAMENTE un JSON puro sin markdown, sin explicaciones, solo el JSON:
+Analiza esta memoria descriptiva, detecta automáticamente el tipo de obra y genera mediciones y presupuesto adaptados a ese tipo de intervención.
+
+INSTRUCCIONES:
+1. Lee la memoria y determina el tipo de obra (carpintería, reforma interior, cubierta, fachada, instalaciones, obra nueva, etc.)
+2. Extrae TODAS las unidades de obra mencionadas en la memoria con sus dimensiones cuando estén disponibles
+3. Genera el presupuesto con los capítulos y partidas específicos para ese tipo de obra
+4. Adapta los precios a la zona geográfica del proyecto
+
+Devuelve ÚNICAMENTE un JSON puro sin markdown, sin explicaciones, solo el JSON:
 
 {
   "proyecto": {
     "titulo": "título del proyecto",
+    "tipo_obra": "tipo detectado ej: Sustitución carpintería exterior",
     "promotor": "nombre",
-    "emplazamiento": "dirección",
+    "emplazamiento": "dirección completa",
+    "municipio": "municipio",
+    "provincia": "provincia",
+    "zona_climatica": "zona climática según municipio ej: B3",
     "pem": 0,
-    "plazo": "x días"
+    "plazo": "x días/semanas"
   },
   "mediciones": [
     {
-      "ref": "V01",
-      "planta": "Planta baja",
-      "tipo": "Ventana",
+      "ref": "P01",
+      "planta": "Planta baja o zona",
+      "tipo": "tipo de elemento",
       "ancho": 1.00,
-      "alto": 1.10,
+      "alto": 1.00,
       "uds": 1,
-      "material": "descripción material"
+      "material": "descripción del material o elemento"
     }
   ],
   "presupuesto": {
     "capitulos": [
       {
         "codigo": "C01",
-        "nombre": "Nombre capítulo",
+        "nombre": "Nombre del capítulo según tipo de obra",
         "partidas": [
           {
             "codigo": "C01.01",
-            "descripcion": "descripción partida",
+            "descripcion": "descripción de la partida",
             "uds": 1.0,
-            "unidad": "ud",
+            "unidad": "ud/m²/ml/pa",
             "precio_unitario": 100.00,
             "observaciones": "nota breve"
           }
@@ -75,7 +87,12 @@ Analiza esta memoria descriptiva y devuelve ÚNICAMENTE un JSON puro sin markdow
   }
 }
 
-Precios realistas para la zona geográfica del proyecto según el emplazamiento indicado en la memoria, considerando costes de mano de obra y materiales de esa región de España en 2026.
+IMPORTANTE:
+- Detecta el tipo de obra y adapta los capítulos a ese tipo específico
+- Si hay dimensiones en la memoria úsalas, si no estímalas según lo descrito
+- Precios realistas para la zona geográfica y tipo de obra en 2026
+- El total debe aproximarse al PEM indicado en la memoria
+- Si no hay PEM indicado, estímalo según el alcance de la obra
 
 MEMORIA:
 ${texto}`;
