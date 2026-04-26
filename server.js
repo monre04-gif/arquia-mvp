@@ -75,7 +75,7 @@ Analiza esta memoria descriptiva y devuelve ÚNICAMENTE un JSON puro sin markdow
   }
 }
 
-Precios realistas para zona Valencia 2026. El total de partidas debe aproximarse al PEM indicado en la memoria. Incluye capítulos de demolición, carpintería, acristalamiento, ayudas albañilería, gestión residuos y seguridad y salud.
+Precios realistas para la zona geográfica del proyecto según el emplazamiento indicado en la memoria, considerando costes de mano de obra y materiales de esa región de España en 2026.
 
 MEMORIA:
 ${texto}`;
@@ -277,6 +277,60 @@ app.post('/exportar-word', express.json({ limit: '10mb' }), async (req, res) => 
 
   } catch(e) {
     res.status(500).json({ error: e.message });
+  }
+});
+app.post('/verificar-cte', express.json({ limit: '10mb' }), async (req, res) => {
+  try {
+    const d = req.body;
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `Eres un arquitecto técnico experto en normativa española, especialmente en el Código Técnico de la Edificación (CTE).
+
+Analiza los siguientes datos de un proyecto y verifica el cumplimiento del DB-HE 1 y DB-HS 3.
+
+DATOS DEL PROYECTO:
+- Promotor: ${d.proyecto.promotor}
+- Emplazamiento: ${d.proyecto.emplazamiento}
+- Municipio: ${d.proyecto.municipio || 'ver emplazamiento'}
+- Tipo de obra: Sustitución de carpintería exterior en vivienda unifamiliar
+- Zona climática: detectar automáticamente según el municipio indicado en el emplazamiento del proyecto
+- Mediciones de carpintería: ${JSON.stringify(d.mediciones)}
+- Material especificado: Carpintería PVC imitación madera, vidrio doble bajo emisivo con control solar
+
+Devuelve ÚNICAMENTE un JSON puro sin markdown:
+{
+  "resumen": "conclusión general en 2 frases",
+  "zona_climatica": "zona detectada ej: B3",
+  "db_he1": {
+    "cumple": true,
+    "transmitancia_maxima": "2.70 W/m²K",
+    "transmitancia_estimada": "1.8-2.2 W/m²K",
+    "factor_solar_requerido": "≤ 0.60",
+    "superficie_total_huecos": 0,
+    "porcentaje_fachada": "estimado",
+    "observaciones": "texto",
+    "advertencias": ["advertencia 1"]
+  },
+  "db_hs3": {
+    "cumple": null,
+    "caudal_minimo_requerido": "según estancias",
+    "observaciones": "texto",
+    "advertencias": ["advertencia 1"]
+  },
+  "recomendaciones": ["recomendación 1", "recomendación 2"],
+  "texto_justificacion": "texto completo listo para copiar en la memoria, redactado en español técnico formal, mínimo 150 palabras"
+}`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text().trim();
+    const clean = responseText.replace(/```json|```/g, '').trim();
+    const jsonStart = clean.indexOf('{');
+    const jsonEnd = clean.lastIndexOf('}');
+    const parsed = JSON.parse(clean.substring(jsonStart, jsonEnd + 1));
+
+    res.json({ ok: true, data: parsed });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
   }
 });
 app.listen(3000, () => console.log('Servidor en http://localhost:3000'));

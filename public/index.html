@@ -690,7 +690,8 @@
   <div class="tabs-row">
     <div class="tabs">
       <button class="tab active" onclick="setTab('mediciones', this)">Mediciones de carpintería</button>
-      <button class="tab" onclick="setTab('presupuesto', this)">Presupuesto por capítulos</button>
+     <button class="tab" onclick="setTab('presupuesto', this)">Presupuesto por capítulos</button>
+<button class="tab" onclick="setTab('cte', this)">Verificación CTE</button> 
     </div>
     <button class="btn-export" id="btn-export-active" onclick="exportCSV('mediciones')">
     <button class="btn-export" onclick="exportarWord()" style="background:#0a0a0a; color:white; border-color:#0a0a0a;">
@@ -736,7 +737,43 @@
     </div>
   </div>
 </div>
-
+<div id="tab-cte" style="display:none">
+  <div style="text-align:center; padding:2rem">
+    <button class="btn-analizar" id="btn-cte" onclick="verificarCTE()">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Verificar cumplimiento CTE
+    </button>
+  </div>
+  <div id="cte-resultado" style="display:none">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem">
+      <div class="table-card" style="padding:1.5rem">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem">
+          <h3 style="font-size:14px; font-weight:700">DB-HE 1 — Demanda energética</h3>
+          <span id="cte-he1-badge" style="font-size:12px; font-weight:600; padding:4px 12px; border-radius:20px"></span>
+        </div>
+        <div id="cte-he1-contenido"></div>
+      </div>
+      <div class="table-card" style="padding:1.5rem">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem">
+          <h3 style="font-size:14px; font-weight:700">DB-HS 3 — Calidad del aire</h3>
+          <span id="cte-hs3-badge" style="font-size:12px; font-weight:600; padding:4px 12px; border-radius:20px"></span>
+        </div>
+        <div id="cte-hs3-contenido"></div>
+      </div>
+    </div>
+    <div class="table-card" style="padding:1.5rem; margin-bottom:1rem">
+      <h3 style="font-size:14px; font-weight:700; margin-bottom:1rem">Recomendaciones</h3>
+      <div id="cte-recomendaciones"></div>
+    </div>
+    <div class="table-card" style="padding:1.5rem">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem">
+        <h3 style="font-size:14px; font-weight:700">Texto de justificación para la memoria</h3>
+        <button class="btn-export" onclick="copiarJustificacion()">Copiar texto</button>
+      </div>
+      <p id="cte-justificacion" style="font-size:13px; line-height:1.8; color:#374151; white-space:pre-wrap"></p>
+    </div>
+  </div>
+</div>
 <script>
 let datosGlobales = null;
 let tabActual = 'mediciones';
@@ -932,6 +969,78 @@ function exportCSV(tipo) {
   a.href = URL.createObjectURL(blob);
   a.download = `arquia-${tipo}.csv`;
   a.click();
+}
+async function verificarCTE() {
+  if (!datosGlobales) return;
+  const btn = document.getElementById('btn-cte');
+  btn.disabled = true;
+  btn.textContent = 'Analizando normativa...';
+  document.getElementById('cte-resultado').style.display = 'none';
+  try {
+    const res = await fetch('/verificar-cte', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datosGlobales)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    renderCTE(json.data);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Verificar cumplimiento CTE';
+  }
+}
+
+function renderCTE(d) {
+  const badge = (cumple) => {
+    if (cumple === true) return { text: 'CUMPLE', bg: '#f0fdf4', color: '#059669' };
+    if (cumple === false) return { text: 'NO CUMPLE', bg: '#fef2f2', color: '#dc2626' };
+    return { text: 'VERIFICAR', bg: '#fefce8', color: '#d97706' };
+  };
+  const he1 = badge(d.db_he1.cumple);
+  const hs3 = badge(d.db_hs3.cumple);
+  const b1 = document.getElementById('cte-he1-badge');
+  b1.textContent = he1.text; b1.style.background = he1.bg; b1.style.color = he1.color;
+  const b2 = document.getElementById('cte-hs3-badge');
+  b2.textContent = hs3.text; b2.style.background = hs3.bg; b2.style.color = hs3.color;
+  document.getElementById('cte-he1-contenido').innerHTML = `
+    <div style="display:grid; gap:8px; font-size:13px">
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6">
+        <span style="color:#6b7280">Zona climática</span><span style="font-weight:500">${d.zona_climatica}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6">
+        <span style="color:#6b7280">U máxima exigida</span><span style="font-weight:500">${d.db_he1.transmitancia_maxima}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6">
+        <span style="color:#6b7280">U estimada carpintería</span><span style="font-weight:500">${d.db_he1.transmitancia_estimada}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6">
+        <span style="color:#6b7280">Factor solar requerido</span><span style="font-weight:500">${d.db_he1.factor_solar_requerido}</span>
+      </div>
+      <div style="padding:8px 0; color:#374151">${d.db_he1.observaciones}</div>
+      ${d.db_he1.advertencias.map(a => `<div style="background:#fefce8; border:1px solid #fde047; border-radius:6px; padding:8px 10px; font-size:12px; color:#854d0e">⚠ ${a}</div>`).join('')}
+    </div>`;
+  document.getElementById('cte-hs3-contenido').innerHTML = `
+    <div style="display:grid; gap:8px; font-size:13px">
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6">
+        <span style="color:#6b7280">Caudal mínimo</span><span style="font-weight:500">${d.db_hs3.caudal_minimo_requerido}</span>
+      </div>
+      <div style="padding:8px 0; color:#374151">${d.db_hs3.observaciones}</div>
+      ${d.db_hs3.advertencias.map(a => `<div style="background:#fefce8; border:1px solid #fde047; border-radius:6px; padding:8px 10px; font-size:12px; color:#854d0e">⚠ ${a}</div>`).join('')}
+    </div>`;
+  document.getElementById('cte-recomendaciones').innerHTML = d.recomendaciones
+    .map(r => `<div style="display:flex; gap:8px; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:13px"><span style="color:#2563eb; font-weight:700">→</span><span>${r}</span></div>`)
+    .join('');
+  document.getElementById('cte-justificacion').textContent = d.texto_justificacion;
+  document.getElementById('cte-resultado').style.display = 'block';
+}
+
+function copiarJustificacion() {
+  const texto = document.getElementById('cte-justificacion').textContent;
+  navigator.clipboard.writeText(texto);
+  alert('Texto copiado al portapapeles');
 }
 async function exportarWord() {
   if (!datosGlobales) return;
