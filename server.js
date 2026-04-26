@@ -4,10 +4,10 @@ const multer = require('multer');
 const PDFParser = require('pdf2json');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const cookieParser = require('cookie-parser');
-app.use(cookieParser());
 const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle } = require('docx');
 
 const app = express();
+app.use(cookieParser());
 const upload = multer({ storage: multer.memoryStorage() });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
